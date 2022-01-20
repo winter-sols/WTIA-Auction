@@ -1,0 +1,13 @@
+{
+  "name": "hardhat-project",
+  "devDependencies": {
+    "@openzeppelin/contracts": "^4.4.2",
+    "@openzeppelin/contracts-ethereum-package": "^3.0.0",
+    "chai": "^4.3.4",
+    "hardhat": "^2.8.2",
+    "solidity-coverage": "^0.7.18"
+  },
+  "dependencies": {
+    "@nomiclabs/hardhat-waffle": "^2.0.1"
+  }
+}
