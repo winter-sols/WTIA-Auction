@@ -31,6 +31,9 @@ contract WtiaAuction is ReentrancyGuard{
     /// @dev The reserve asset
     uint256 reserveAmount;
 
+    /// @dev token address
+    address token;
+
     /// @dev The block number when this contract is deployed
     uint256 startDate;
 
@@ -89,11 +92,13 @@ contract WtiaAuction is ReentrancyGuard{
 
     /**
      * @dev open this acution
-     * @param token address of ERC20 token(asset)
+     * @param _token address of ERC20 token(asset)
+     * @param _totalAmount amount of tokens
      */
-    function openAuction(address token, uint256 _totalAmount) external {
+    function openAuction(address _token, uint256 _totalAmount) external {
         startDate = block.number;
         totalAmount = _totalAmount;
+        token = _token;
         require(msg.sender == seller, "POT: only seller can open auction");
         require(token != address(0), "POT: invalid token address");
         require(totalAmount > 0, "POT: invalid amount of assets");
@@ -174,28 +179,38 @@ contract WtiaAuction is ReentrancyGuard{
      * @dev Make a bid request
      * @param bid number of required assets(tokens)
      */
-    function makeBid(address token, uint256 bid) payable external {
+    function makeBid(uint256 bid) payable external {
         require(!isClosed(), "POT: auction is closed.");
         require(bid > 0, "POT: zero amount");
 
         address recepient = msg.sender;
         uint256 currentPrice = getCurrentPrice();
+        uint256 actualBid;
         require(msg.value == currentPrice * bid, "POT: invalid payment for the bid");
 
         if (currentPrice < reservePrice) {
             revert("POT: current price is reached to reserve price.");
         } else {
+            if (reserveAmount + bid >= totalAmount) {
+                actualBid = totalAmount - reserveAmount;
+                endPrice = currentPrice;
+                isOver = true;
+                emit AuctionClosed("POT: all tokens are sold out.");
+            } else {
+                reserveAmount += bid;
+                actualBid = bid;
+            }
             uint256 userBalanceBefore = IERC20(token).balanceOf(recepient);
             uint256 serverBalanceBefore = IERC20(token).balanceOf(address(this));
             
-            IERC20(token).safeTransfer(recepient, bid);
+            IERC20(token).safeTransfer(recepient, actualBid);
 
             uint256 userBalanceAfter = IERC20(token).balanceOf(recepient);
             uint256 serverBalanceAfter = IERC20(token).balanceOf(address(this));
 
             require(
-                (userBalanceAfter - userBalanceBefore) == bid &&
-                (serverBalanceBefore - serverBalanceAfter) == bid
+                (userBalanceAfter - userBalanceBefore) == actualBid &&
+                (serverBalanceBefore - serverBalanceAfter) == actualBid
             );
 
             emit BidPlaced(msg.sender, currentPrice, msg.value);
